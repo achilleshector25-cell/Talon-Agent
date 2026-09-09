@@ -1,0 +1,27 @@
+version: "3.9"
+services:
+  gateway:
+    build: ./talon/gateway
+    ports:
+      - "8443:8443"
+    environment:
+      - VAULT_ADDR=http://vault:8200
+      - QDRANT_URL=http://qdrant:6333
+    depends_on: [vault, qdrant, redis]
+    security_opt: [no-new-privileges:true]
+    read_only: true
+  qdrant:
+    image: qdrant/qdrant:v1.9
+    volumes: [qdrant_data:/qdrant/storage]
+  vault:
+    image: hashicorp/vault:1.15
+    environment: {VAULT_DEV_ROOT_TOKEN_ID: root}
+    cap_add: [IPC_LOCK]
+  redis:
+    image: redis:7-alpine
+  execution:
+    build: ./talon/execution
+    privileged: false
+    security_opt: [seccomp:unconfined]
+volumes:
+  qdrant_data:
