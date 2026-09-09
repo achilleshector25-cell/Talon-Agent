@@ -8,7 +8,7 @@ class TokenBucket:
         self.budget = daily_budget
         self.remaining = daily_budget
         self.refill_rate = refill_rate
-        self.last = time.time()
+        self.last = time.monotonic()
         self.cache = OrderedDict()
         self.max_cache = 500
         self._lock = RLock()
