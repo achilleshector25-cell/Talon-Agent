@@ -92,7 +92,6 @@ class TelegramLiveConnector(BaseConnector):
                 role="owner" if is_owner else "guest",
                 channel="telegram",
                 fingerprint=payload["_internal_identity"]["fingerprint"],
-                is_owner=is_owner,
             )
             # Lazy singletons
             if not hasattr(self, "_orch"):
