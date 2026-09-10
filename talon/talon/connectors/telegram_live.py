@@ -81,6 +81,12 @@ class TelegramLiveConnector(BaseConnector):
                     # Attach ownership for gateway
                     inbound.raw["is_owner"] = user_id in self.owner_ids
                     inbound.raw["chat_id"] = chat_id
+                    print(
+                        f"[telegram] received update={upd['update_id']} "
+                        f"user={user_id} owner={user_id in self.owner_ids} "
+                        f"tool={parse_tool_request(sanitized)[0] or 'auto'}",
+                        flush=True,
+                    )
                     yield inbound
             except Exception as e:
                 print(f"[telegram] poll error: {e}")
@@ -89,12 +95,18 @@ class TelegramLiveConnector(BaseConnector):
     async def send(self, user_id: str, text: str):
         # user_id here is chat_id
         try:
-            await self._api(
+            result = await self._api(
                 "sendMessage",
-                {"chat_id": int(user_id), "text": text[:4000], "parse_mode": "Markdown"},
+                {"chat_id": int(user_id), "text": text[:4000]},
             )
+            if not result.get("ok"):
+                print(
+                    f"[telegram] send failed chat={user_id}: "
+                    f"{result.get('description', 'unknown Telegram error')}",
+                    flush=True,
+                )
         except Exception as e:
-            print(f"[telegram] send error: {e}")
+            print(f"[telegram] send error chat={user_id}: {e}", flush=True)
 
     async def forward_to_gateway(self, inbound: InboundMessage):
         """Forward to TALON gateway with server-derived owner flag (never client)"""
@@ -155,9 +167,18 @@ class TelegramLiveConnector(BaseConnector):
                 resp_text = f"*TALON*\n{resp_text}"
 
             await self.send(inbound.raw["chat_id"], resp_text)
+            print(
+                f"[telegram] completed update={inbound.raw['update_id']} "
+                f"tool={payload['tool'] or 'auto'} error={result.get('error')}",
+                flush=True,
+            )
             return result
         except Exception as e:
             await self.send(inbound.raw["chat_id"], f"❌ Gateway error: {e}")
+            print(
+                f"[telegram] gateway error update={inbound.raw.get('update_id')}: {e}",
+                flush=True,
+            )
             raise
 
 async def run_telegram_bot():

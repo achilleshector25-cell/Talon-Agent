@@ -55,5 +55,6 @@ def test_telegram_shell_command_is_explicit():
         "shell",
         {"cmd": "echo safe"},
     )
+    assert parse_tool_request("/shell@Talon_Testbot pwd") == ("shell", {"cmd": "pwd"})
     assert parse_tool_request("please run echo safe") == (None, {})
     assert parse_tool_request("/shell") == ("shell", {"cmd": ""})
