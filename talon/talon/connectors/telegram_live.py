@@ -3,6 +3,7 @@
 import os, asyncio, httpx, uuid
 from typing import AsyncGenerator
 from .base import BaseConnector, InboundMessage
+from .telegram_commands import parse_tool_request
 
 TELEGRAM_API = "https://api.telegram.org/bot{token}/{method}"
 
@@ -67,12 +68,13 @@ class TelegramLiveConnector(BaseConnector):
     async def forward_to_gateway(self, inbound: InboundMessage):
         """Forward to TALON gateway with server-derived owner flag (never client)"""
         is_owner = inbound.raw.get("is_owner", False)
+        requested_tool, requested_args = parse_tool_request(inbound.text)
         # In prod: this goes via mTLS QUIC, identity derived from cert. For Telegram, we derive server-side from owner_ids allowlist
         payload = {
             "message": inbound.text,
             "channel": "telegram",
-            "tool": None,
-            "args": {},
+            "tool": requested_tool,
+            "args": requested_args,
             "_internal_identity": {
                 "spiffe_id": f"spiffe://talon/{'owner' if is_owner else 'guest'}/telegram:{inbound.user_id}",
                 "is_owner": is_owner,  # SERVER-DERIVED from allowlist, not client payload
@@ -102,6 +104,8 @@ class TelegramLiveConnector(BaseConnector):
                 identity=ident,
                 channel="telegram",
                 client_ip=f"telegram:{inbound.user_id}",
+                requested_tool=payload["tool"],
+                requested_args=payload["args"],
             )
             # Format response
             if "error" in result:

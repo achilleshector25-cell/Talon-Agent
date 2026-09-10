@@ -47,3 +47,13 @@ def test_host_execution_is_disabled_by_default(monkeypatch):
     executor = FirecrackerExecutor()
     result = __import__("asyncio").run(executor.run("echo unsafe"))
     assert result["error"] == "host_execution_disabled"
+
+def test_telegram_shell_command_is_explicit():
+    from talon.connectors.telegram_commands import parse_tool_request
+
+    assert parse_tool_request("/shell echo safe") == (
+        "shell",
+        {"cmd": "echo safe"},
+    )
+    assert parse_tool_request("please run echo safe") == (None, {})
+    assert parse_tool_request("/shell") == ("shell", {"cmd": ""})

@@ -14,6 +14,19 @@ docker compose up --build
 make dev
 ```
 
+## Telegram commands
+
+The live bridge accepts explicit tool commands:
+
+```text
+/shell <command>
+```
+
+`/shell` is still restricted to IDs listed in `TELEGRAM_OWNER_IDS`, requires
+`TALON_ENABLE_SHELL=1`, and requires an available isolated execution runtime.
+Host execution remains disabled by default; setting `TALON_ALLOW_HOST_EXECUTION=1`
+is only a development fallback and is not a production sandbox.
+
 ## Architecture
 ```
 Channel Isolation -> Secure Gateway (Rust core, mTLS+QUIC, OPA) -> Agent Runtime (Orchestrator + WASM Tools + Taint Graph + Memory Vault) -> Execution Plane (Firecracker microVMs, gVisor, ACLs)
