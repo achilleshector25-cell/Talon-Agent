@@ -166,7 +166,11 @@ async def run_telegram_bot():
     if not token:
         print("ERROR: Set TELEGRAM_BOT_TOKEN env var. Get from @BotFather.")
         return
-    owner_ids = set(int(x.strip()) for x in owner_raw.split(",") if x.strip().isdigit())
+    owner_values = [x.strip() for x in owner_raw.split(",") if x.strip()]
+    owner_ids = {int(x) for x in owner_values if x.isdigit()}
+    invalid_owner_values = [x for x in owner_values if not x.isdigit()]
+    if invalid_owner_values:
+        print("WARNING: Ignoring non-numeric TELEGRAM_OWNER_IDS entries; use Telegram numeric user IDs.")
     if not owner_ids:
         print("WARNING: No TELEGRAM_OWNER_IDS set — all users will be guest (can only web_search). Set your Telegram user ID.")
     connector = TelegramLiveConnector(token=token, owner_ids=owner_ids)
