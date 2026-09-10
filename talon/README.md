@@ -27,6 +27,38 @@ The live bridge accepts explicit tool commands:
 Host execution remains disabled by default; setting `TALON_ALLOW_HOST_EXECUTION=1`
 is only a development fallback and is not a production sandbox.
 
+### Replit development runbook
+
+1. Store `TELEGRAM_BOT_TOKEN` as a Replit Secret.
+2. Set `TELEGRAM_OWNER_IDS` in the development environment to your personal
+   numeric Telegram user ID. Do not use the bot's ID or username.
+3. Enable the development-only host fallback:
+
+   ```text
+   TALON_ENV=development
+   TALON_DEV_MODE=1
+   TALON_ENABLE_SHELL=1
+   TALON_ALLOW_HOST_EXECUTION=1
+   ```
+
+4. Start the `TALON Telegram Bridge` workflow:
+
+   ```bash
+   cd talon && PYTHONPATH=. python talonctl_telegram.py
+   ```
+
+5. Send `/shell echo TALON works` to the bot. The response should include the
+   command output and `host-exec-dev-only`. Pipelines and redirects are
+   supported in this explicitly enabled development mode, for example:
+
+   ```text
+   /shell printf 'hello\n' | tr a-z A-Z
+   ```
+
+This mode gives the Telegram owner direct command execution on the Replit
+host. Stop the bridge and remove `TALON_ALLOW_HOST_EXECUTION` before using
+TALON with untrusted users or in production.
+
 ## Architecture
 ```
 Channel Isolation -> Secure Gateway (Rust core, mTLS+QUIC, OPA) -> Agent Runtime (Orchestrator + WASM Tools + Taint Graph + Memory Vault) -> Execution Plane (Firecracker microVMs, gVisor, ACLs)

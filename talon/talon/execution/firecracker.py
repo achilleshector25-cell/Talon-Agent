@@ -1,12 +1,11 @@
 """Execution boundary.
 
-The production implementation must call a Firecracker/gVisor service.  Host
-execution is disabled by default so the MVP cannot silently escape its
-claimed sandbox.
+The production implementation must call a Firecracker/gVisor service. Host
+execution is disabled by default. When explicitly enabled for development,
+commands run through a real host shell as the Replit workspace user.
 """
 import asyncio
 import os
-import shlex
 import signal
 
 class FirecrackerExecutor:
@@ -24,20 +23,13 @@ class FirecrackerExecutor:
             return {"error": "network_access_denied", "vm": "host-exec"}
         if not isinstance(cmd, str) or not cmd.strip() or len(cmd) > 2_000:
             return {"error": "invalid_command", "vm": "host-exec"}
-        if any(char in cmd for char in ";&|<>$`()\\\n\r"):
-            return {"error": "shell_syntax_denied", "vm": "host-exec"}
-        try:
-            argv = shlex.split(cmd)
-        except ValueError:
-            return {"error": "invalid_command", "vm": "host-exec"}
-        if not argv:
-            return {"error": "invalid_command", "vm": "host-exec"}
         env = {"PATH": "/usr/bin:/bin", "LANG": "C", "HOME": "/tmp"}
-        proc = await asyncio.create_subprocess_exec(
-            *argv,
+        proc = await asyncio.create_subprocess_shell(
+            cmd,
+            executable="/bin/bash",
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
-            cwd="/tmp",
+            cwd=os.getenv("TALON_HOST_CWD", os.getcwd()),
             env=env,
             start_new_session=True,
         )
