@@ -1,6 +1,12 @@
 
-"""Live Telegram wiring — secure, owner-only, taint-aware"""
-import os, asyncio, httpx, uuid
+"""Live Telegram wiring — secure, owner-only, taint-aware."""
+import asyncio
+import json
+import os
+import uuid
+from urllib.error import HTTPError
+from urllib.parse import urlencode
+from urllib.request import Request, urlopen
 from typing import AsyncGenerator
 from .base import BaseConnector, InboundMessage
 from .telegram_commands import parse_tool_request
@@ -15,17 +21,42 @@ class TelegramLiveConnector(BaseConnector):
         self.owner_ids = owner_ids
         self.gateway_url = gateway_url
         self.offset = 0
-        self.client = httpx.AsyncClient(timeout=30)
+
+    async def _api(self, method: str, params: dict | None = None) -> dict:
+        """Call the Telegram Bot API without exposing the token to callers."""
+        params = params or {}
+
+        def request() -> dict:
+            url = TELEGRAM_API.format(token=self.token, method=method)
+            body = None
+            headers = {}
+            if method == "getUpdates":
+                query = dict(params)
+                if isinstance(query.get("allowed_updates"), list):
+                    query["allowed_updates"] = json.dumps(query["allowed_updates"])
+                url = f"{url}?{urlencode(query)}"
+            else:
+                body = json.dumps(params).encode()
+                headers["Content-Type"] = "application/json"
+            try:
+                with urlopen(Request(url, data=body, headers=headers), timeout=30) as response:
+                    return json.loads(response.read())
+            except HTTPError as error:
+                try:
+                    return json.loads(error.read())
+                except Exception:
+                    return {"ok": False, "description": f"Telegram HTTP {error.code}"}
+
+        return await asyncio.to_thread(request)
 
     async def listen(self) -> AsyncGenerator[InboundMessage, None]:
         print(f"[talon/telegram] Polling started, owner_ids={self.owner_ids}")
         while True:
             try:
-                r = await self.client.get(
-                    TELEGRAM_API.format(token=self.token, method="getUpdates"),
-                    params={"offset": self.offset, "timeout": 25, "allowed_updates": ["message"]},
+                data = await self._api(
+                    "getUpdates",
+                    {"offset": self.offset, "timeout": 25, "allowed_updates": ["message"]},
                 )
-                data = r.json()
                 if not data.get("ok"):
                     await asyncio.sleep(2)
                     continue
@@ -58,9 +89,9 @@ class TelegramLiveConnector(BaseConnector):
     async def send(self, user_id: str, text: str):
         # user_id here is chat_id
         try:
-            await self.client.post(
-                TELEGRAM_API.format(token=self.token, method="sendMessage"),
-                json={"chat_id": int(user_id), "text": text[:4000], "parse_mode": "Markdown"},
+            await self._api(
+                "sendMessage",
+                {"chat_id": int(user_id), "text": text[:4000], "parse_mode": "Markdown"},
             )
         except Exception as e:
             print(f"[telegram] send error: {e}")

@@ -11,6 +11,26 @@ env = { "CI" = "true" }
 [workflows]
 runButton = "Project"
 
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "TALON Telegram Bridge"
+
+[[workflows.workflow]]
+name = "TALON Telegram Bridge"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd talon && PYTHONPATH=. python talonctl_telegram.py"
+
+[workflows.workflow.metadata]
+outputType = "console"
+
 [agent]
 stack = "PNPM_WORKSPACE"
 expertMode = true
@@ -22,3 +42,11 @@ timeoutMs = 20000
 [nix]
 channel = "stable-25_05"
 packages = ["cargo", "libiconv", "libxcrypt", "openssl", "pkg-config", "rustc"]
+
+[userenv]
+
+[userenv.development]
+TALON_ALLOW_HOST_EXECUTION = "1"
+TALON_DEV_MODE = "1"
+TALON_ENABLE_SHELL = "1"
+TALON_ENV = "development"
